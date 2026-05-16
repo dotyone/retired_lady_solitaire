@@ -1,5 +1,5 @@
 // Service Worker — Cache-first for offline support
-const CACHE_NAME = 'solitaire-v4';
+const CACHE_NAME = 'solitaire-v5';
 
 // On install: cache the app shell
 self.addEventListener('install', event => {

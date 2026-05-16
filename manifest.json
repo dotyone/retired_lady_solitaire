@@ -9,8 +9,8 @@
   "theme_color": "#0d7326",
   "icons": [
     {
-      "src": "assets/PNG/Cards (large)/card_spades_A.png",
-      "sizes": "208x303",
+      "src": "icon.png",
+      "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
     }
