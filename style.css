@@ -1,0 +1,225 @@
+/* ==========================================
+   Mom's Solitaire — Styles
+   ========================================== */
+
+:root {
+  --felt: #0d7326;
+  --felt-dark: #0a5c1e;
+  --card-gap: 3px;
+  --toolbar-height: 40px;
+  --top-row-height: 0px; /* set by JS */
+  --card-radius: 6px;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
+  background: var(--felt);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  touch-action: manipulation;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* ---- Game container ---- */
+#game {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  padding: env(safe-area-inset-top, 4px) 4px 4px;
+  background:
+    radial-gradient(ellipse at 50% 30%, rgba(255,255,255,0.06) 0%, transparent 70%),
+    var(--felt);
+}
+
+/* ---- Toolbar ---- */
+#toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: var(--toolbar-height);
+  padding: 0 4px;
+  color: #fff;
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+#new-game-btn {
+  background: rgba(255,255,255,0.15);
+  border: 1px solid rgba(255,255,255,0.3);
+  color: #fff;
+  padding: 4px 12px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+#new-game-btn:active { background: rgba(255,255,255,0.3); }
+
+#move-counter { font-weight: 600; }
+#timer { font-variant-numeric: tabular-nums; min-width: 3em; text-align: right; }
+
+/* ---- Top Row ---- */
+#top-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 2px 0;
+  flex-shrink: 0;
+}
+
+#stock-waste {
+  display: flex;
+  gap: var(--card-gap);
+}
+
+#foundations {
+  display: flex;
+  gap: var(--card-gap);
+}
+
+/* ---- Card Slots (empty placeholders) ---- */
+.card-slot {
+  position: relative;
+  border-radius: var(--card-radius);
+  background: rgba(255,255,255,0.05);
+  border: 2px dashed rgba(255,255,255,0.2);
+}
+
+/* Foundation suit hints */
+.foundation[data-pile="0"]::after,
+.foundation[data-pile="1"]::after,
+.foundation[data-pile="2"]::after,
+.foundation[data-pile="3"]::after {
+  position: absolute;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 32px;
+  opacity: 0.3;
+  pointer-events: none;
+}
+.foundation[data-pile="0"]::after { content: "♥"; color: #ff4060; opacity: 0.5; }
+.foundation[data-pile="1"]::after { content: "♦"; color: #ff4060; opacity: 0.5; }
+.foundation[data-pile="2"]::after { content: "♣"; color: #fff; }
+.foundation[data-pile="3"]::after { content: "♠"; color: #fff; }
+
+/* Hide suit hint when a card is placed */
+.foundation.has-card::after { display: none; }
+
+/* Stock recycle hint */
+#stock.empty-stock {
+  cursor: pointer;
+}
+#stock.empty-stock::after {
+  content: "↻";
+  position: absolute;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 22px;
+  color: rgba(255,255,255,0.3);
+  pointer-events: none;
+}
+
+/* ---- Tableau ---- */
+#tableau {
+  display: flex;
+  gap: var(--card-gap);
+  flex: 1;
+  padding-top: 6px;
+  min-height: 0;
+}
+
+.tableau-pile {
+  flex: 1;
+  position: relative;
+}
+
+/* ---- Card elements ---- */
+.card {
+  position: absolute;
+  border-radius: var(--card-radius);
+  cursor: pointer;
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+  image-rendering: auto;
+}
+
+.card img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: var(--card-radius);
+  pointer-events: none;
+}
+
+.card.selected {
+  transform: translateY(-6px);
+  box-shadow: 0 0 8px 3px rgba(255, 255, 0, 0.65);
+  z-index: 200 !important;
+}
+
+.card.face-down {
+  cursor: default;
+}
+
+/* Cards inside top-row slots are static (not absolute) */
+.card-slot > .card {
+  position: absolute;
+  top: 0; left: 0;
+}
+
+/* ---- Win Overlay ---- */
+#win-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+#win-overlay.hidden { display: none; }
+
+#win-message {
+  background: #fff;
+  border-radius: 16px;
+  padding: 32px 40px;
+  text-align: center;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+}
+
+#win-message h1 {
+  font-size: 28px;
+  margin-bottom: 8px;
+}
+
+#win-message p {
+  color: #555;
+  margin-bottom: 20px;
+  font-size: 16px;
+}
+
+#win-new-game {
+  background: var(--felt);
+  color: #fff;
+  border: none;
+  padding: 10px 28px;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+}
+#win-new-game:active { background: var(--felt-dark); }
+
+/* ---- Responsive: iPad / larger screens ---- */
+@media (min-width: 700px) {
+  #game { padding: 8px 12px; }
+  #toolbar { font-size: 16px; height: 46px; }
+  :root { --card-gap: 6px; --card-radius: 8px; }
+  #win-message h1 { font-size: 36px; }
+}

@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <title>Mom's Solitaire</title>
+
+  <!-- PWA -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#0d7326">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Solitaire">
+  <link rel="apple-touch-icon" href="assets/PNG/Cards (large)/card_spades_A.png">
+
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="game">
+    <!-- Toolbar -->
+    <div id="toolbar">
+      <button id="new-game-btn">&#x21bb; New Game</button>
+      <span id="move-counter">Moves: 0</span>
+      <span id="timer">0:00</span>
+    </div>
+
+    <!-- Top row: stock, waste, foundations -->
+    <div id="top-row">
+      <div id="stock-waste">
+        <div id="stock" class="card-slot"></div>
+        <div id="waste" class="card-slot"></div>
+      </div>
+      <div id="foundations">
+        <div class="card-slot foundation" data-pile="0"></div>
+        <div class="card-slot foundation" data-pile="1"></div>
+        <div class="card-slot foundation" data-pile="2"></div>
+        <div class="card-slot foundation" data-pile="3"></div>
+      </div>
+    </div>
+
+    <!-- Tableau: 7 columns -->
+    <div id="tableau">
+      <div class="tableau-pile" data-pile="0"></div>
+      <div class="tableau-pile" data-pile="1"></div>
+      <div class="tableau-pile" data-pile="2"></div>
+      <div class="tableau-pile" data-pile="3"></div>
+      <div class="tableau-pile" data-pile="4"></div>
+      <div class="tableau-pile" data-pile="5"></div>
+      <div class="tableau-pile" data-pile="6"></div>
+    </div>
+
+    <!-- Win overlay -->
+    <div id="win-overlay" class="hidden">
+      <div id="win-message">
+        <h1>&#127881; You Win!</h1>
+        <p id="win-stats"></p>
+        <button id="win-new-game">Play Again</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="solitaire.js"></script>
+</body>
+</html>

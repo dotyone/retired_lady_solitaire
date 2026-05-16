@@ -1,0 +1,18 @@
+{
+  "name": "Mom's Solitaire",
+  "short_name": "Solitaire",
+  "description": "A simple, ad-free Klondike Solitaire game",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0d7326",
+  "theme_color": "#0d7326",
+  "icons": [
+    {
+      "src": "assets/PNG/Cards (large)/card_spades_A.png",
+      "sizes": "208x303",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}
