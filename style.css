@@ -61,8 +61,38 @@ html, body {
 }
 #new-game-btn:active { background: rgba(255,255,255,0.3); }
 
-#move-counter { font-weight: 600; }
-#timer { font-variant-numeric: tabular-nums; min-width: 3em; text-align: right; }
+#hint-btn {
+  background: rgba(255,255,255,0.15);
+  border: 1px solid rgba(255,255,255,0.3);
+  color: #fff;
+  padding: 4px 12px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+#hint-btn:active { background: rgba(255,255,255,0.3); }
+
+/* Hint highlight pulse */
+.hint-source {
+  animation: hintPulse 0.6s ease-in-out 3;
+  z-index: 300 !important;
+}
+.hint-target {
+  animation: hintTarget 0.6s ease-in-out 3;
+}
+@keyframes hintPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(0, 200, 255, 0); transform: translateY(0); }
+  50% { box-shadow: 0 0 12px 4px rgba(0, 200, 255, 0.8); transform: translateY(-4px); }
+}
+@keyframes hintTarget {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(0, 255, 100, 0); }
+  50% { box-shadow: 0 0 14px 5px rgba(0, 255, 100, 0.7); }
+}
+
+#move-counter { font-weight: 600; flex: 1; text-align: center; }
+#timer { font-variant-numeric: tabular-nums; min-width: 3em; text-align: right; margin-right: 8px; }
 
 /* ---- Top Row ---- */
 #top-row {
@@ -170,6 +200,27 @@ html, body {
 .card-slot > .card {
   position: absolute;
   top: 0; left: 0;
+}
+
+/* ---- Win Overlay ---- */
+
+/* ---- Win canvas ---- */
+#win-canvas {
+  position: fixed;
+  inset: 0;
+  z-index: 999;
+  pointer-events: none;
+}
+#win-canvas.hidden { display: none; }
+
+/* ---- Drag ghost ---- */
+#drag-ghost {
+  filter: drop-shadow(0 6px 16px rgba(0,0,0,0.45));
+  transition: none;
+}
+
+#drag-ghost .card {
+  transition: none;
 }
 
 /* ---- Win Overlay ---- */

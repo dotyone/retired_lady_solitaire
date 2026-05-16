@@ -22,6 +22,7 @@
       <button id="new-game-btn">&#x21bb; New Game</button>
       <span id="move-counter">Moves: 0</span>
       <span id="timer">0:00</span>
+      <button id="hint-btn">&#x2728; Hint</button>
     </div>
 
     <!-- Top row: stock, waste, foundations -->
@@ -48,6 +49,9 @@
       <div class="tableau-pile" data-pile="5"></div>
       <div class="tableau-pile" data-pile="6"></div>
     </div>
+
+    <!-- Win animation canvas -->
+    <canvas id="win-canvas" class="hidden"></canvas>
 
     <!-- Win overlay -->
     <div id="win-overlay" class="hidden">

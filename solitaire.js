@@ -409,6 +409,10 @@ function renderWaste() {
     const top = game.waste[game.waste.length - 1];
     const c = makeCardEl(top, true);
     if (selection && selection.source === 'waste') c.classList.add('selected');
+    c.dataset.source = 'waste';
+    c.dataset.pile = '0';
+    c.dataset.cardIndex = String(game.waste.length - 1);
+    addDragListeners(c);
     el.appendChild(c);
   }
 
@@ -428,6 +432,10 @@ function renderFoundation(idx) {
     if (selection && selection.source === 'foundation' && selection.pile === idx) {
       c.classList.add('selected');
     }
+    c.dataset.source = 'foundation';
+    c.dataset.pile = idx;
+    c.dataset.cardIndex = String(pile.length - 1);
+    addDragListeners(c);
     el.appendChild(c);
   } else {
     el.classList.remove('has-card');
@@ -476,6 +484,10 @@ function renderTableauPile(pileIdx) {
     // Click handler for face-up cards
     if (card.faceUp) {
       c.onclick = (e) => { e.stopPropagation(); handleTableauClick(pileIdx, idx); };
+      c.dataset.source = 'tableau';
+      c.dataset.pile = pileIdx;
+      c.dataset.cardIndex = idx;
+      addDragListeners(c);
     }
 
     container.appendChild(c);
@@ -519,13 +531,292 @@ function computeFanOffsets() {
 }
 
 // ── Win screen ─────────────────────────────────
+let winAnimationId = null;
+
 function showWin() {
   clearInterval(timerInterval);
   game.timerRunning = false;
-  document.getElementById('win-stats').textContent =
-    'Completed in ' + game.moveCount + ' moves · ' + formatTime(game.elapsedSeconds);
-  document.getElementById('win-overlay').classList.remove('hidden');
   localStorage.removeItem('solitaire_save');
+
+  // Start the cascading cards animation
+  startCascadeAnimation(() => {
+    // When animation finishes, show the modal
+    document.getElementById('win-stats').textContent =
+      'Completed in ' + game.moveCount + ' moves · ' + formatTime(game.elapsedSeconds);
+    document.getElementById('win-overlay').classList.remove('hidden');
+  });
+}
+
+function startCascadeAnimation(onDone) {
+  const canvas = document.getElementById('win-canvas');
+  canvas.classList.remove('hidden');
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+  const ctx = canvas.getContext('2d');
+
+  // Preload card images for the cascade
+  const cardImgs = [];
+  let loaded = 0;
+  const allCards = [];
+  for (const suit of SUITS) {
+    for (const rank of RANKS) {
+      allCards.push({ suit, rank });
+    }
+  }
+
+  // Shuffle for variety
+  for (let i = allCards.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [allCards[i], allCards[j]] = [allCards[j], allCards[i]];
+  }
+
+  const total = allCards.length;
+  allCards.forEach(card => {
+    const img = new Image();
+    img.src = cardImageSrc(card);
+    img.onload = img.onerror = () => {
+      loaded++;
+      if (loaded === total) runCascade(ctx, canvas, cardImgs, onDone);
+    };
+    cardImgs.push(img);
+  });
+}
+
+function runCascade(ctx, canvas, cardImgs, onDone) {
+  const W = canvas.width;
+  const H = canvas.height;
+  const cw = Math.min(70, W / 8);
+  const ch = cw * 1.4;
+  const gravity = 0.4;
+  const bounce = -0.6;
+
+  // Create bouncing cards launched from top, one at a time
+  const cards = [];
+  let nextCard = 0;
+  let spawnTimer = 0;
+  const spawnInterval = 4; // frames between card spawns
+  const maxCards = Math.min(cardImgs.length, 26); // half deck for performance
+  let doneFrames = 0;
+
+  function frame() {
+    // Semi-transparent fill to create trailing effect
+    ctx.fillStyle = 'rgba(13, 115, 38, 0.15)';
+    ctx.fillRect(0, 0, W, H);
+
+    // Spawn new cards
+    spawnTimer++;
+    if (nextCard < maxCards && spawnTimer >= spawnInterval) {
+      spawnTimer = 0;
+      const startX = (nextCard / maxCards) * (W - cw);
+      cards.push({
+        img: cardImgs[nextCard],
+        x: startX,
+        y: -ch,
+        vx: (Math.random() - 0.5) * 4,
+        vy: Math.random() * 2 + 1,
+        rotation: (Math.random() - 0.5) * 0.3,
+        active: true,
+      });
+      nextCard++;
+    }
+
+    // Update & draw cards
+    let allDone = true;
+    for (const c of cards) {
+      if (!c.active) continue;
+
+      c.vy += gravity;
+      c.x += c.vx;
+      c.y += c.vy;
+
+      // Bounce off bottom
+      if (c.y + ch > H) {
+        c.y = H - ch;
+        c.vy *= bounce;
+        if (Math.abs(c.vy) < 1) {
+          c.vy = 0;
+          c.active = false;
+          continue;
+        }
+      }
+
+      // Bounce off sides
+      if (c.x < 0) { c.x = 0; c.vx = Math.abs(c.vx); }
+      if (c.x + cw > W) { c.x = W - cw; c.vx = -Math.abs(c.vx); }
+
+      allDone = false;
+
+      // Draw with slight rotation
+      ctx.save();
+      ctx.translate(c.x + cw / 2, c.y + ch / 2);
+      ctx.rotate(c.rotation);
+      ctx.drawImage(c.img, -cw / 2, -ch / 2, cw, ch);
+      ctx.restore();
+    }
+
+    if (nextCard >= maxCards && allDone) {
+      doneFrames++;
+    }
+
+    if (doneFrames > 60) {
+      // Hold final frame briefly then callback
+      cancelAnimationFrame(winAnimationId);
+      winAnimationId = null;
+      if (onDone) onDone();
+      return;
+    }
+
+    winAnimationId = requestAnimationFrame(frame);
+  }
+
+  winAnimationId = requestAnimationFrame(frame);
+}
+
+function stopCascadeAnimation() {
+  if (winAnimationId) {
+    cancelAnimationFrame(winAnimationId);
+    winAnimationId = null;
+  }
+  const canvas = document.getElementById('win-canvas');
+  canvas.classList.add('hidden');
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+}
+
+// ── Hint System ────────────────────────────────
+function findHint() {
+  // Priority 1: Tableau/Waste → Foundation
+  for (let i = 0; i < 7; i++) {
+    const pile = game.tableau[i];
+    if (pile.length === 0) continue;
+    const card = pile[pile.length - 1];
+    if (!card.faceUp) continue;
+    for (let f = 0; f < 4; f++) {
+      if (canPlaceOnFoundation(card, f)) {
+        return { from: { source: 'tableau', pile: i, cardIndex: pile.length - 1 }, to: { type: 'foundation', pile: f } };
+      }
+    }
+  }
+  if (game.waste.length > 0) {
+    const card = game.waste[game.waste.length - 1];
+    for (let f = 0; f < 4; f++) {
+      if (canPlaceOnFoundation(card, f)) {
+        return { from: { source: 'waste' }, to: { type: 'foundation', pile: f } };
+      }
+    }
+  }
+
+  // Priority 2: Tableau → Tableau (move face-up stacks)
+  for (let i = 0; i < 7; i++) {
+    const pile = game.tableau[i];
+    if (pile.length === 0) continue;
+    // Find the topmost face-up card in this pile
+    let firstFaceUp = 0;
+    while (firstFaceUp < pile.length && !pile[firstFaceUp].faceUp) firstFaceUp++;
+    if (firstFaceUp >= pile.length) continue;
+
+    for (let j = 0; j < 7; j++) {
+      if (i === j) continue;
+      if (canPlaceOnTableau(pile[firstFaceUp], j)) {
+        // Skip if just moving a King to an empty pile with nothing to gain
+        if (pile[firstFaceUp].rank === 13 && firstFaceUp === 0 && game.tableau[j].length === 0) continue;
+        return { from: { source: 'tableau', pile: i, cardIndex: firstFaceUp }, to: { type: 'tableau', pile: j } };
+      }
+    }
+  }
+
+  // Priority 3: Waste → Tableau
+  if (game.waste.length > 0) {
+    const card = game.waste[game.waste.length - 1];
+    for (let j = 0; j < 7; j++) {
+      if (canPlaceOnTableau(card, j)) {
+        return { from: { source: 'waste' }, to: { type: 'tableau', pile: j } };
+      }
+    }
+  }
+
+  // Priority 4: Foundation → Tableau (sometimes needed to unblock)
+  for (let f = 0; f < 4; f++) {
+    const pile = game.foundations[f];
+    if (pile.length === 0) continue;
+    const card = pile[pile.length - 1];
+    for (let j = 0; j < 7; j++) {
+      if (canPlaceOnTableau(card, j)) {
+        return { from: { source: 'foundation', pile: f }, to: { type: 'tableau', pile: j } };
+      }
+    }
+  }
+
+  // Priority 5: Draw from stock
+  if (game.stock.length > 0) {
+    return { from: { source: 'stock' }, to: null };
+  }
+
+  return null; // no moves available
+}
+
+function showHint() {
+  // Clear any existing hints
+  clearHints();
+
+  const hint = findHint();
+  if (!hint) {
+    // Flash the hint button to indicate no moves
+    const btn = document.getElementById('hint-btn');
+    btn.style.background = 'rgba(255,80,80,0.5)';
+    setTimeout(() => { btn.style.background = ''; }, 800);
+    return;
+  }
+
+  // Highlight source
+  const sourceEl = getHintElement(hint.from);
+  if (sourceEl) sourceEl.classList.add('hint-source');
+
+  // Highlight target
+  if (hint.to) {
+    const targetEl = getHintTargetElement(hint.to);
+    if (targetEl) targetEl.classList.add('hint-target');
+  }
+
+  // Auto-clear after animation
+  setTimeout(clearHints, 2000);
+}
+
+function getHintElement(from) {
+  if (from.source === 'waste') {
+    return document.querySelector('#waste .card');
+  }
+  if (from.source === 'stock') {
+    return document.getElementById('stock');
+  }
+  if (from.source === 'foundation') {
+    return document.querySelectorAll('.foundation')[from.pile].querySelector('.card');
+  }
+  if (from.source === 'tableau') {
+    const container = document.querySelectorAll('.tableau-pile')[from.pile];
+    const cards = container.querySelectorAll('.card');
+    return cards[from.cardIndex] || null;
+  }
+  return null;
+}
+
+function getHintTargetElement(to) {
+  if (to.type === 'foundation') {
+    const el = document.querySelectorAll('.foundation')[to.pile];
+    return el.querySelector('.card') || el;
+  }
+  if (to.type === 'tableau') {
+    const container = document.querySelectorAll('.tableau-pile')[to.pile];
+    const cards = container.querySelectorAll('.card');
+    if (cards.length > 0) return cards[cards.length - 1];
+    return container.querySelector('.card-slot') || container;
+  }
+  return null;
+}
+
+function clearHints() {
+  document.querySelectorAll('.hint-source').forEach(el => el.classList.remove('hint-source'));
+  document.querySelectorAll('.hint-target').forEach(el => el.classList.remove('hint-target'));
 }
 
 // ── Save / Load ────────────────────────────────
@@ -580,6 +871,226 @@ function registerSW() {
   }
 }
 
+// ── Drag and Drop ──────────────────────────────
+const DRAG_THRESHOLD = 8; // px before a tap becomes a drag
+
+let drag = null; // { ghost, source, pile, cardIndex, startX, startY, isDragging }
+
+function addDragListeners(el) {
+  el.addEventListener('mousedown', onPointerDown, { passive: false });
+  el.addEventListener('touchstart', onPointerDown, { passive: false });
+}
+
+function getXY(e) {
+  if (e.touches && e.touches.length > 0) {
+    return { x: e.touches[0].clientX, y: e.touches[0].clientY };
+  }
+  return { x: e.clientX, y: e.clientY };
+}
+
+function onPointerDown(e) {
+  const cardEl = e.currentTarget;
+  if (!cardEl.dataset.source) return;
+
+  const { x, y } = getXY(e);
+
+  drag = {
+    ghost: null,
+    source: cardEl.dataset.source,
+    pile: parseInt(cardEl.dataset.pile),
+    cardIndex: parseInt(cardEl.dataset.cardIndex),
+    startX: x,
+    startY: y,
+    isDragging: false,
+    originEl: cardEl,
+  };
+
+  document.addEventListener('mousemove', onPointerMove, { passive: false });
+  document.addEventListener('mouseup', onPointerUp);
+  document.addEventListener('touchmove', onPointerMove, { passive: false });
+  document.addEventListener('touchend', onPointerUp);
+  document.addEventListener('touchcancel', onPointerUp);
+}
+
+function onPointerMove(e) {
+  if (!drag) return;
+  const { x, y } = getXY(e);
+
+  if (!drag.isDragging) {
+    const dx = x - drag.startX;
+    const dy = y - drag.startY;
+    if (Math.abs(dx) < DRAG_THRESHOLD && Math.abs(dy) < DRAG_THRESHOLD) return;
+    drag.isDragging = true;
+    selection = null; // clear tap selection when dragging starts
+    startDragGhost(drag, x, y);
+  }
+
+  e.preventDefault();
+  moveDragGhost(x, y);
+}
+
+function onPointerUp(e) {
+  document.removeEventListener('mousemove', onPointerMove);
+  document.removeEventListener('mouseup', onPointerUp);
+  document.removeEventListener('touchmove', onPointerMove);
+  document.removeEventListener('touchend', onPointerUp);
+  document.removeEventListener('touchcancel', onPointerUp);
+
+  if (!drag) return;
+
+  if (drag && drag.isDragging) {
+    const { x, y } = e.changedTouches ? { x: e.changedTouches[0].clientX, y: e.changedTouches[0].clientY } : { x: e.clientX, y: e.clientY };
+    dropCards(x, y);
+    removeDragGhost();
+    // Suppress the click that follows mouseup
+    drag.originEl.addEventListener('click', suppressClick, { capture: true, once: true });
+  }
+  // If not dragging, the click handler will fire naturally
+
+  drag = null;
+}
+
+function suppressClick(e) {
+  e.stopImmediatePropagation();
+  e.preventDefault();
+}
+
+function startDragGhost(d, x, y) {
+  const ghost = document.createElement('div');
+  ghost.id = 'drag-ghost';
+  ghost.style.position = 'fixed';
+  ghost.style.zIndex = '500';
+  ghost.style.pointerEvents = 'none';
+  ghost.style.opacity = '0.92';
+  ghost.style.transform = 'rotate(2deg) scale(1.05)';
+
+  // Build ghost cards
+  const cards = getDragCards(d);
+  const offsets = computeFanOffsets();
+  let top = 0;
+
+  cards.forEach((card, i) => {
+    const c = makeCardEl(card, true);
+    c.style.position = 'absolute';
+    c.style.top = top + 'px';
+    c.style.left = '0';
+    ghost.appendChild(c);
+    if (i < cards.length - 1) top += offsets.faceUp;
+  });
+
+  ghost.style.width = cardW + 'px';
+  ghost.style.height = (top + cardH) + 'px';
+
+  // Position centered on pointer
+  ghost.style.left = (x - cardW / 2) + 'px';
+  ghost.style.top = (y - 20) + 'px';
+
+  document.body.appendChild(ghost);
+  drag.ghost = ghost;
+  drag.offsetX = cardW / 2;
+  drag.offsetY = 20;
+
+  // Hide original cards
+  hideSourceCards(d);
+}
+
+function moveDragGhost(x, y) {
+  if (!drag || !drag.ghost) return;
+  drag.ghost.style.left = (x - drag.offsetX) + 'px';
+  drag.ghost.style.top = (y - drag.offsetY) + 'px';
+}
+
+function removeDragGhost() {
+  if (drag && drag.ghost) {
+    drag.ghost.remove();
+    drag.ghost = null;
+  }
+}
+
+function getDragCards(d) {
+  if (d.source === 'waste') return [game.waste[game.waste.length - 1]];
+  if (d.source === 'foundation') return [game.foundations[d.pile][game.foundations[d.pile].length - 1]];
+  if (d.source === 'tableau') return game.tableau[d.pile].slice(d.cardIndex);
+  return [];
+}
+
+function hideSourceCards(d) {
+  if (d.source === 'tableau') {
+    const container = document.querySelectorAll('.tableau-pile')[d.pile];
+    const cardEls = container.querySelectorAll('.card');
+    for (let i = d.cardIndex; i < cardEls.length; i++) {
+      cardEls[i].style.visibility = 'hidden';
+    }
+  } else if (d.source === 'waste') {
+    const wasteEl = document.getElementById('waste');
+    const c = wasteEl.querySelector('.card');
+    if (c) c.style.visibility = 'hidden';
+  } else if (d.source === 'foundation') {
+    const foundEl = document.querySelectorAll('.foundation')[d.pile];
+    const c = foundEl.querySelector('.card');
+    if (c) c.style.visibility = 'hidden';
+  }
+}
+
+function dropCards(x, y) {
+  if (!drag) return;
+  startTimer();
+
+  const target = findDropTarget(x, y);
+  let moved = false;
+
+  if (target) {
+    const from = {
+      source: drag.source,
+      pile: drag.pile,
+      cardIndex: drag.cardIndex,
+    };
+
+    if (target.type === 'tableau') {
+      if (from.source === 'waste') moved = moveWasteToTableau(target.pile);
+      else if (from.source === 'tableau') moved = moveTableauToTableau(from.pile, from.cardIndex, target.pile);
+      else if (from.source === 'foundation') moved = moveFoundationToTableau(from.pile, target.pile);
+    } else if (target.type === 'foundation') {
+      if (from.source === 'waste') moved = moveWasteToFoundation(target.pile);
+      else if (from.source === 'tableau') moved = moveTableauToFoundation(from.pile, target.pile);
+    }
+  }
+
+  if (moved && checkWin()) {
+    saveGame();
+    render();
+    showWin();
+    return;
+  }
+
+  saveGame();
+  render();
+}
+
+function findDropTarget(x, y) {
+  // Check foundations
+  const foundEls = document.querySelectorAll('.foundation');
+  for (let i = 0; i < foundEls.length; i++) {
+    const rect = foundEls[i].getBoundingClientRect();
+    if (x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom) {
+      return { type: 'foundation', pile: i };
+    }
+  }
+
+  // Check tableau piles (use the full column width, generous height)
+  const pileEls = document.querySelectorAll('.tableau-pile');
+  for (let i = 0; i < pileEls.length; i++) {
+    const rect = pileEls[i].getBoundingClientRect();
+    // Extend the hit area down to the bottom of the screen for empty/short piles
+    const bottom = Math.max(rect.bottom, rect.top + cardH);
+    if (x >= rect.left && x <= rect.right && y >= rect.top && y <= bottom) {
+      return { type: 'tableau', pile: i };
+    }
+  }
+
+  return null;
+}
+
 // ── Resize handling ────────────────────────────
 let resizeTimer;
 window.addEventListener('resize', () => {
@@ -595,7 +1106,9 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('new-game-btn').onclick = () => {
     if (confirm('Start a new game?')) newGame();
   };
+  document.getElementById('hint-btn').onclick = showHint;
   document.getElementById('win-new-game').onclick = () => {
+    stopCascadeAnimation();
     document.getElementById('win-overlay').classList.add('hidden');
     newGame();
   };
