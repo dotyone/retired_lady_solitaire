@@ -9,7 +9,7 @@
   "theme_color": "#0d7326",
   "icons": [
     {
-      "src": "icon.png",
+      "src": "dog_icon.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
