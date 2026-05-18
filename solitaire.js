@@ -478,7 +478,9 @@ function render() {
 }
 
 function sizeSlots() {
+  const drawCount = getDrawCount();
   document.querySelectorAll('.card-slot').forEach(el => {
+    if (el.id === 'waste' && drawCount === 3 && game.waste.length > 1) return; // sized by renderWaste
     el.style.width = cardW + 'px';
     el.style.height = cardH + 'px';
   });
@@ -524,16 +526,18 @@ function renderWaste() {
 
   const drawCount = getDrawCount();
   if (game.waste.length > 0) {
-    // In draw-3 mode, show up to 3 fanned cards
+    // In draw-3 mode, show up to 3 fanned cards (fan left, away from stock)
     const showCount = drawCount === 3 ? Math.min(3, game.waste.length) : 1;
     const fanOffset = Math.round(cardW * 0.3);
+    const totalFan = drawCount === 3 ? (showCount - 1) * fanOffset : 0;
 
     for (let i = 0; i < showCount; i++) {
       const idx = game.waste.length - showCount + i;
       const card = game.waste[idx];
       const c = makeCardEl(card, true);
       c.style.position = 'absolute';
-      c.style.left = (drawCount === 3 ? i * fanOffset : 0) + 'px';
+      // Fan left: first card at far left, last card at right edge
+      c.style.left = (drawCount === 3 ? (totalFan - (showCount - 1 - i) * fanOffset) : 0) + 'px';
       c.style.top = '0';
       c.style.zIndex = String(i);
 
@@ -549,7 +553,8 @@ function renderWaste() {
     }
     // Set container width to accommodate fanned cards
     if (drawCount === 3 && showCount > 1) {
-      el.style.width = (cardW + (showCount - 1) * fanOffset) + 'px';
+      el.style.width = (cardW + totalFan) + 'px';
+      el.style.height = cardH + 'px';
     }
   }
 
