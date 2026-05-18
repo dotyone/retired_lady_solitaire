@@ -5,25 +5,18 @@
 // ── Constants ──────────────────────────────────
 const SUITS = ['hearts', 'diamonds', 'clubs', 'spades'];
 const RANKS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13];
-const IMG_DIR = 'assets/PNG/Cards (large)/';
 
 function suitColor(suit) {
   return (suit === 'hearts' || suit === 'diamonds') ? 'red' : 'black';
 }
 
-function rankAssetSuffix(rank) {
-  if (rank === 1) return 'A';
-  if (rank === 11) return 'J';
-  if (rank === 12) return 'Q';
-  if (rank === 13) return 'K';
-  return String(rank).padStart(2, '0');
-}
-
 function cardImageSrc(card) {
-  return IMG_DIR + 'card_' + card.suit + '_' + rankAssetSuffix(card.rank) + '.png';
+  return CardRenderer.getCardDataURL(card.suit, card.rank);
 }
 
-const CARD_BACK_SRC = IMG_DIR + 'card_back.png';
+function cardBackSrc() {
+  return CardRenderer.getCardBackDataURL();
+}
 
 // ── Deck creation & shuffle ────────────────────
 let nextId = 0;
@@ -380,7 +373,7 @@ function makeCardEl(card, isFaceUp) {
   div.style.height = cardH + 'px';
 
   const img = document.createElement('img');
-  img.src = isFaceUp ? cardImageSrc(card) : CARD_BACK_SRC;
+  img.src = isFaceUp ? cardImageSrc(card) : cardBackSrc();
   img.alt = '';
   img.draggable = false;
   div.appendChild(img);
@@ -420,7 +413,7 @@ function renderWaste() {
 }
 
 function renderFoundation(idx) {
-  const el = document.querySelectorAll('.foundation')[idx];
+  const el = document.querySelector('.foundation[data-pile="' + idx + '"]');
   // remove old card elements but keep the pseudo-element
   el.querySelectorAll('.card').forEach(c => c.remove());
 
@@ -445,7 +438,7 @@ function renderFoundation(idx) {
 }
 
 function renderTableauPile(pileIdx) {
-  const container = document.querySelectorAll('.tableau-pile')[pileIdx];
+  const container = document.querySelector('.tableau-pile[data-pile="' + pileIdx + '"]');
   container.innerHTML = '';
 
   const pile = game.tableau[pileIdx];
@@ -537,6 +530,7 @@ function showWin() {
   clearInterval(timerInterval);
   game.timerRunning = false;
   localStorage.removeItem('solitaire_save');
+  recordWin(game.moveCount, game.elapsedSeconds);
 
   // Start the cascading cards animation
   startCascadeAnimation(() => {
@@ -790,10 +784,12 @@ function getHintElement(from) {
     return document.getElementById('stock');
   }
   if (from.source === 'foundation') {
-    return document.querySelectorAll('.foundation')[from.pile].querySelector('.card');
+    const el = document.querySelector('.foundation[data-pile="' + from.pile + '"]');
+    return el ? el.querySelector('.card') : null;
   }
   if (from.source === 'tableau') {
-    const container = document.querySelectorAll('.tableau-pile')[from.pile];
+    const container = document.querySelector('.tableau-pile[data-pile="' + from.pile + '"]');
+    if (!container) return null;
     const cards = container.querySelectorAll('.card');
     return cards[from.cardIndex] || null;
   }
@@ -802,11 +798,13 @@ function getHintElement(from) {
 
 function getHintTargetElement(to) {
   if (to.type === 'foundation') {
-    const el = document.querySelectorAll('.foundation')[to.pile];
+    const el = document.querySelector('.foundation[data-pile="' + to.pile + '"]');
+    if (!el) return null;
     return el.querySelector('.card') || el;
   }
   if (to.type === 'tableau') {
-    const container = document.querySelectorAll('.tableau-pile')[to.pile];
+    const container = document.querySelector('.tableau-pile[data-pile="' + to.pile + '"]');
+    if (!container) return null;
     const cards = container.querySelectorAll('.card');
     if (cards.length > 0) return cards[cards.length - 1];
     return container.querySelector('.card-slot') || container;
@@ -856,12 +854,7 @@ function loadGame() {
 
 // ── Image preloading ───────────────────────────
 function preloadImages() {
-  for (const suit of SUITS) {
-    for (const rank of RANKS) {
-      new Image().src = cardImageSrc({ suit, rank });
-    }
-  }
-  new Image().src = CARD_BACK_SRC;
+  // SVG cards are generated on-the-fly — no preloading needed
 }
 
 // ── Service Worker registration ────────────────
@@ -1016,7 +1009,7 @@ function getDragCards(d) {
 
 function hideSourceCards(d) {
   if (d.source === 'tableau') {
-    const container = document.querySelectorAll('.tableau-pile')[d.pile];
+    const container = document.querySelector('.tableau-pile[data-pile="' + d.pile + '"]');
     const cardEls = container.querySelectorAll('.card');
     for (let i = d.cardIndex; i < cardEls.length; i++) {
       cardEls[i].style.visibility = 'hidden';
@@ -1026,9 +1019,8 @@ function hideSourceCards(d) {
     const c = wasteEl.querySelector('.card');
     if (c) c.style.visibility = 'hidden';
   } else if (d.source === 'foundation') {
-    const foundEl = document.querySelectorAll('.foundation')[d.pile];
-    const c = foundEl.querySelector('.card');
-    if (c) c.style.visibility = 'hidden';
+    const foundEl = document.querySelector('.foundation[data-pile="' + d.pile + '"]');
+    if (foundEl) { const c = foundEl.querySelector('.card'); if (c) c.style.visibility = 'hidden'; }
   }
 }
 
@@ -1098,24 +1090,147 @@ window.addEventListener('resize', () => {
   resizeTimer = setTimeout(render, 100);
 });
 
+// ── Stats System ───────────────────────────────
+const STATS_KEY = 'solitaire_stats';
+
+function loadStats() {
+  try {
+    const raw = localStorage.getItem(STATS_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch (_) {}
+  return { totalGames: 0, wins: 0, losses: 0, currentStreak: 0, bestStreak: 0, fastestWins: [] };
+}
+
+function saveStats(stats) {
+  try { localStorage.setItem(STATS_KEY, JSON.stringify(stats)); } catch (_) {}
+}
+
+function recordWin(moves, seconds) {
+  const stats = loadStats();
+  stats.totalGames++;
+  stats.wins++;
+  stats.currentStreak++;
+  if (stats.currentStreak > stats.bestStreak) stats.bestStreak = stats.currentStreak;
+  // Track top 5 fastest wins
+  stats.fastestWins.push({ moves, seconds, date: new Date().toLocaleDateString() });
+  stats.fastestWins.sort((a, b) => a.seconds - b.seconds);
+  stats.fastestWins = stats.fastestWins.slice(0, 5);
+  saveStats(stats);
+}
+
+function recordLoss() {
+  const stats = loadStats();
+  stats.totalGames++;
+  stats.losses++;
+  stats.currentStreak = 0;
+  saveStats(stats);
+}
+
+function renderStatsPanel() {
+  const stats = loadStats();
+  const winRate = stats.totalGames > 0 ? Math.round((stats.wins / stats.totalGames) * 100) : 0;
+  const body = document.getElementById('stats-body');
+
+  let html = '<div class="stat-row"><span class="stat-label">Games Played</span><span class="stat-value">' + stats.totalGames + '</span></div>';
+  html += '<div class="stat-row"><span class="stat-label">Wins</span><span class="stat-value">' + stats.wins + '</span></div>';
+  html += '<div class="stat-row"><span class="stat-label">Win Rate</span><span class="stat-value">' + winRate + '%</span></div>';
+  html += '<div class="stat-row"><span class="stat-label">Current Streak</span><span class="stat-value">' + stats.currentStreak + '</span></div>';
+  html += '<div class="stat-row"><span class="stat-label">Best Streak</span><span class="stat-value">' + stats.bestStreak + '</span></div>';
+
+  if (stats.fastestWins.length > 0) {
+    html += '<div class="fastest-title">Fastest Wins</div>';
+    stats.fastestWins.forEach(w => {
+      html += '<div class="fastest-entry"><span>' + formatTime(w.seconds) + ' \u00b7 ' + w.moves + ' moves</span><span>' + w.date + '</span></div>';
+    });
+  }
+
+  body.innerHTML = html;
+}
+
+function showStats() {
+  renderStatsPanel();
+  document.getElementById('stats-overlay').classList.remove('hidden');
+}
+
+function hideStats() {
+  document.getElementById('stats-overlay').classList.add('hidden');
+}
+
+function resetStats() {
+  if (confirm('Reset all statistics?')) {
+    localStorage.removeItem(STATS_KEY);
+    renderStatsPanel();
+  }
+}
+
+// ── Settings / Theme Picker ──────────────────────
+function renderThemePicker() {
+  const picker = document.getElementById('theme-picker');
+  const themes = CardRenderer.getThemes();
+  const current = CardRenderer.getTheme();
+  picker.innerHTML = themes.map(t => {
+    const sel = t.id === current ? ' selected' : '';
+    const c1 = t.colors.hearts;
+    const c2 = t.colors.clubs;
+    return `<div class="theme-option${sel}" data-theme="${t.id}">
+      <div class="theme-label">${t.label}</div>
+      <div class="theme-swatches">
+        <div class="theme-swatch" style="background:${c1}"></div>
+        <div class="theme-swatch" style="background:${c2}"></div>
+      </div>
+    </div>`;
+  }).join('');
+
+  picker.querySelectorAll('.theme-option').forEach(el => {
+    el.onclick = () => {
+      CardRenderer.setTheme(el.dataset.theme);
+      renderThemePicker();
+      render();
+    };
+  });
+}
+
+function showSettings() {
+  renderThemePicker();
+  document.getElementById('settings-overlay').classList.remove('hidden');
+}
+
+function hideSettings() {
+  document.getElementById('settings-overlay').classList.add('hidden');
+}
+
 // ── Boot ───────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
-  preloadImages();
   registerSW();
 
   document.getElementById('new-game-btn').onclick = () => {
-    if (confirm('Start a new game?')) newGame();
+    // If game is in progress (cards dealt, not won), record a loss
+    const inProgress = game.tableau.some(p => p.length > 0) || game.waste.length > 0 || game.stock.length > 0;
+    const alreadyWon = checkWin();
+    if (inProgress && !alreadyWon && game.moveCount > 0) {
+      if (!confirm('Abandon this game and start fresh?')) return;
+      recordLoss();
+    }
+    newGame();
   };
   document.getElementById('hint-btn').onclick = showHint;
+  document.getElementById('stats-btn').onclick = showStats;
+  document.getElementById('stats-close').onclick = hideStats;
+  document.getElementById('stats-reset').onclick = resetStats;
+  document.getElementById('settings-btn').onclick = showSettings;
+  document.getElementById('settings-close').onclick = hideSettings;
   document.getElementById('win-new-game').onclick = () => {
     stopCascadeAnimation();
     document.getElementById('win-overlay').classList.add('hidden');
     newGame();
   };
 
-  if (!loadGame()) {
-    newGame();
-  } else {
-    render();
-  }
+  // Load royal card images, then start the game
+  CardRenderer.init().then(() => {
+    if (!loadGame()) {
+      newGame();
+    } else {
+      render();
+    }
+  });
 });

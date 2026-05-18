@@ -19,23 +19,25 @@
   <div id="game">
     <!-- Toolbar -->
     <div id="toolbar">
-      <button id="new-game-btn">&#x21bb; New Game</button>
+      <button id="new-game-btn" class="toolbar-btn">&#x21bb; New Game</button>
       <span id="move-counter">Moves: 0</span>
       <span id="timer">0:00</span>
-      <button id="hint-btn">&#x2728; Hint</button>
+      <button id="stats-btn" class="toolbar-btn">&#x1f4ca; Stats</button>
+      <button id="settings-btn" class="toolbar-btn">&#x2699;&#xFE0F;</button>
+      <button id="hint-btn" class="toolbar-btn">&#x2728; Hint</button>
     </div>
 
-    <!-- Top row: stock, waste, foundations -->
+    <!-- Top row: foundations (left), stock/waste (right for thumb reach) -->
     <div id="top-row">
-      <div id="stock-waste">
-        <div id="stock" class="card-slot"></div>
-        <div id="waste" class="card-slot"></div>
-      </div>
       <div id="foundations">
         <div class="card-slot foundation" data-pile="0"></div>
         <div class="card-slot foundation" data-pile="1"></div>
         <div class="card-slot foundation" data-pile="2"></div>
         <div class="card-slot foundation" data-pile="3"></div>
+      </div>
+      <div id="stock-waste">
+        <div id="waste" class="card-slot"></div>
+        <div id="stock" class="card-slot"></div>
       </div>
     </div>
 
@@ -54,15 +56,38 @@
     <canvas id="win-canvas" class="hidden"></canvas>
 
     <!-- Win overlay -->
-    <div id="win-overlay" class="hidden">
+    <div id="win-overlay" class="overlay hidden">
       <div id="win-message">
         <h1>&#127881; You Win!</h1>
         <p id="win-stats"></p>
         <button id="win-new-game">Play Again</button>
       </div>
     </div>
+
+    <!-- Stats overlay -->
+    <div id="stats-overlay" class="overlay hidden">
+      <div id="stats-panel">
+        <h2>&#x1f4ca; Statistics</h2>
+        <div id="stats-body"></div>
+        <div id="stats-actions">
+          <button id="stats-close">Close</button>
+          <button id="stats-reset">Reset Stats</button>
+        </div>
+      </div>
+    </div>
+    <!-- Settings overlay -->
+    <div id="settings-overlay" class="overlay hidden">
+      <div id="settings-panel">
+        <h2>&#x2699;&#xFE0F; Settings</h2>
+        <div id="theme-picker"></div>
+        <div id="settings-actions">
+          <button id="settings-close">Close</button>
+        </div>
+      </div>
+    </div>
   </div>
 
+  <script src="card-renderer.js"></script>
   <script src="solitaire.js"></script>
 </body>
 </html>
