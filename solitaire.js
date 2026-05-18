@@ -528,7 +528,7 @@ function renderWaste() {
   if (game.waste.length > 0) {
     // In draw-3 mode, show up to 3 fanned cards (fan left, away from stock)
     const showCount = drawCount === 3 ? Math.min(3, game.waste.length) : 1;
-    const fanOffset = Math.round(cardW * 0.3);
+    const fanOffset = Math.round(cardW * (CardRenderer.getLargeFont() ? 0.45 : 0.3));
     const totalFan = drawCount === 3 ? (showCount - 1) * fanOffset : 0;
 
     for (let i = 0; i < showCount; i++) {
@@ -644,7 +644,7 @@ function renderTableauPile(pileIdx) {
 
 function computeFanOffsets() {
   const idealDown = Math.round(cardH * 0.18);
-  const idealUp = Math.round(cardH * 0.28);
+  const idealUp = Math.round(cardH * (CardRenderer.getLargeFont() ? 0.40 : 0.28));
 
   // Available height for tableau
   const gameH = document.getElementById('game').clientHeight;
@@ -1373,6 +1373,7 @@ function renderThemePicker() {
 function showSettings() {
   renderThemePicker();
   renderDrawToggle();
+  renderSizeToggle();
   document.getElementById('settings-overlay').classList.remove('hidden');
 }
 
@@ -1395,9 +1396,35 @@ function hideSettings() {
   document.getElementById('settings-overlay').classList.add('hidden');
 }
 
+function renderSizeToggle() {
+  const container = document.getElementById('size-toggle');
+  const current = CardRenderer.getLargeFont();
+  container.innerHTML = [
+    { label: 'Normal', value: false },
+    { label: 'Large', value: true }
+  ].map(opt => {
+    const sel = opt.value === current ? ' selected' : '';
+    return `<button class="draw-option${sel}" data-size="${opt.value}">${opt.label}</button>`;
+  }).join('');
+  container.querySelectorAll('.draw-option').forEach(btn => {
+    btn.onclick = () => {
+      const isLarge = btn.dataset.size === 'true';
+      CardRenderer.setLargeFont(isLarge);
+      document.body.classList.toggle('large-font', isLarge);
+      renderSizeToggle();
+      render();
+    };
+  });
+}
+
 // ── Boot ───────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
   registerSW();
+
+  // Apply large font class before rendering
+  if (CardRenderer.getLargeFont()) {
+    document.body.classList.add('large-font');
+  }
 
   document.getElementById('new-game-btn').onclick = () => {
     // If game is in progress (cards dealt, not won), record a loss

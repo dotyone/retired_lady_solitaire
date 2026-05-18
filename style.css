@@ -58,8 +58,7 @@ html, body {
   left: 0;
   right: 0;
   display: flex;
-  justify-content: space-around;
-  align-items: center;
+  align-items: stretch;
   height: calc(env(safe-area-inset-bottom, 4px) + 64px);
   padding-bottom: env(safe-area-inset-bottom, 4px);
   background: rgba(10,40,10,0.85);
@@ -73,6 +72,7 @@ html, body {
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
   gap: 2px;
   flex: 1;
   background: none;
@@ -426,7 +426,8 @@ html, body {
   color: #333;
   margin-bottom: 8px;
 }
-#draw-toggle {
+#draw-toggle,
+#size-toggle {
   display: flex;
   gap: 8px;
   justify-content: center;
@@ -476,3 +477,13 @@ html, body {
   #top-row { padding: 2px 0; }
   #tableau { padding-top: 3px; }
 }
+
+/* ---- Large Font Mode ---- */
+body.large-font #info-bar {
+  font-size: 22px;
+  height: 40px;
+}
+body.large-font .tab-icon { font-size: 30px; }
+body.large-font .tab-label { font-size: 15px; }
+body.large-font #auto-complete-bar span { font-size: 20px; }
+body.large-font #auto-complete-btn { font-size: 20px; padding: 10px 22px; }

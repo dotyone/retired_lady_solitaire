@@ -37,6 +37,8 @@ const CardRenderer = (() => {
   let currentTheme = localStorage.getItem('solitaire-theme') || 'grizz';
   if (!THEMES[currentTheme]) currentTheme = 'grizz';
 
+  let largeFont = localStorage.getItem('solitaire-large-font') === 'true';
+
   // ── Suit Characters ────────────────────────────
   const SUIT_CHAR = {
     hearts:   '\u2665',   // ♥
@@ -72,19 +74,29 @@ const CardRenderer = (() => {
     const c  = col(suit);
     const ch = SUIT_CHAR[suit];
     const lbl = rankLabel(rank);
-    const fs  = lbl.length > 1 ? 88 : 104;
-    const ss  = 68;  // suit size
+    let fs, ss, ry, sy, sx;
+    if (largeFont) {
+      fs = lbl.length > 1 ? 120 : 140;
+      ss = 90;
+      ry = 120;
+      sy = 116;
+      sx = lbl.length > 1 ? 145 : 115;
+    } else {
+      fs = lbl.length > 1 ? 88 : 104;
+      ss = 68;
+      ry = 90;
+      sy = 86;
+      sx = lbl.length > 1 ? 106 : 86;
+    }
     const o = outline(c);
-    // Suit x offset depends on rank width
-    const sx = lbl.length > 1 ? 106 : 86;
     return `
-  <text x="10" y="90" font-size="${fs}" font-weight="700" fill="${c}"${o} text-anchor="start" font-family="'Segoe UI',Arial,sans-serif">${lbl}</text>
-  <text x="${sx}" y="86" font-size="${ss}" fill="${c}"${o} text-anchor="start">${ch}</text>`;
+  <text x="10" y="${ry}" font-size="${fs}" font-weight="700" fill="${c}"${o} text-anchor="start" font-family="'Segoe UI',Arial,sans-serif">${lbl}</text>
+  <text x="${sx}" y="${sy}" font-size="${ss}" fill="${c}"${o} text-anchor="start">${ch}</text>`;
   }
 
   /** Wrap inner content in a full-card SVG */
   function svgWrap(inner) {
-    return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 250 350">'
+    return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 250 350" width="500" height="700">'
       + cardRect() + inner + '</svg>';
   }
 
@@ -93,8 +105,9 @@ const CardRenderer = (() => {
     const c  = col(suit);
     const ch = SUIT_CHAR[suit];
     const o = outline(c);
+    const suitY = largeFont ? 215 : 195;
     return svgWrap(corners(suit, rank)
-      + '<text x="125" y="195" font-size="140" fill="' + c
+      + '<text x="125" y="' + suitY + '" font-size="140" fill="' + c
       + '"' + o + ' text-anchor="middle" dominant-baseline="central">' + ch + '</text>');
   }
 
@@ -103,8 +116,9 @@ const CardRenderer = (() => {
     const c  = col(suit);
     const ch = SUIT_CHAR[suit];
     const o = outline(c);
+    const suitY = largeFont ? 215 : 195;
     return svgWrap(corners(suit, 1)
-      + '<text x="125" y="195" font-size="140" fill="' + c
+      + '<text x="125" y="' + suitY + '" font-size="140" fill="' + c
       + '"' + o + ' text-anchor="middle" dominant-baseline="central">' + ch + '</text>');
   }
 
@@ -142,9 +156,9 @@ const CardRenderer = (() => {
       + '0 0 0 1 0"/>'
       + '</filter></defs>'
       // Icon centered below badge area, with suit color tint
-      + '<image href="' + imgData + '" x="25" y="100" width="200" height="230" preserveAspectRatio="xMidYMid meet" filter="url(#st)"/>'
+      + '<image href="' + imgData + '" x="25" y="' + (largeFont ? 145 : 100) + '" width="200" height="' + (largeFont ? 195 : 230) + '" preserveAspectRatio="xMidYMid meet" filter="url(#st)"/>'
       // White corner badge for readability
-      + '<rect x="2" y="2" width="150" height="96" rx="10" fill="white" opacity="0.88"/>'
+      + '<rect x="2" y="2" width="' + (largeFont ? 225 : 150) + '" height="' + (largeFont ? 140 : 96) + '" rx="10" fill="white" opacity="0.88"/>'
       // Corner labels
       + corners(suit, rank));
   }
@@ -166,7 +180,7 @@ const CardRenderer = (() => {
   function buildCardBack() {
     const t = THEMES[currentTheme];
     const b1 = t.back1, b2 = t.back2, ac = t.accent, bd = t.border, gl = t.glow;
-    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 250 350">
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 250 350" width="500" height="700">
   <defs>
     <pattern id="bp" width="24" height="24" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
       <rect width="24" height="24" fill="${b1}"/>
@@ -259,5 +273,13 @@ const CardRenderer = (() => {
     },
     getTheme()  { return currentTheme; },
     getThemes() { return Object.keys(THEMES).map(k => ({ id: k, label: THEMES[k].label, colors: THEMES[k] })); },
+
+    setLargeFont(v) {
+      largeFont = !!v;
+      localStorage.setItem('solitaire-large-font', String(largeFont));
+      for (const k in cache) delete cache[k];
+      backCache = null;
+    },
+    getLargeFont() { return largeFont; },
   };
 })();

@@ -1,5 +1,5 @@
 // Service Worker — Network-first for app files, cache-first for images
-const CACHE_NAME = 'solitaire-v11';
+const CACHE_NAME = 'solitaire-v12';
 
 // On install: cache the app shell
 self.addEventListener('install', event => {
