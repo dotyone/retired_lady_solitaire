@@ -859,9 +859,23 @@ function preloadImages() {
 
 // ── Service Worker registration ────────────────
 function registerSW() {
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('./sw.js').catch(() => {});
-  }
+  if (!('serviceWorker' in navigator)) return;
+  navigator.serviceWorker.register('./sw.js', { updateViaCache: 'none' })
+    .then(reg => {
+      // Check for updates every 60 seconds
+      setInterval(() => reg.update(), 60000);
+      // When a new SW is waiting, activate it and reload
+      const onNewSW = (worker) => {
+        worker.addEventListener('statechange', () => {
+          if (worker.state === 'activated') window.location.reload();
+        });
+      };
+      if (reg.waiting) onNewSW(reg.waiting);
+      reg.addEventListener('updatefound', () => {
+        if (reg.installing) onNewSW(reg.installing);
+      });
+    })
+    .catch(() => {});
 }
 
 // ── Drag and Drop ──────────────────────────────
