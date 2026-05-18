@@ -11,13 +11,17 @@ const CardRenderer = (() => {
       diamonds: '#cc0000',
       clubs:    '#222222',
       spades:   '#222222',
+      back1: '#f5f5f0',  back2: '#e8e4dc',  accent: '#cc0000',
+      border: '#999',    glow: '#cc0000',
     },
     grizz: {
       label: 'Grizz',
       hearts:   '#660033',
       diamonds: '#660033',
-      clubs:    '#999999',
-      spades:   '#999999',
+      clubs:    '#C0C0C0',
+      spades:   '#C0C0C0',
+      back1: '#660033',  back2: '#7a1a4a',  accent: '#C0C0C0',
+      border: '#440022',  glow: '#C0C0C0',
     },
     illini: {
       label: 'Illini',
@@ -25,6 +29,8 @@ const CardRenderer = (() => {
       diamonds: '#FF5F05',
       clubs:    '#13294B',
       spades:   '#13294B',
+      back1: '#13294B',  back2: '#1a3a60',  accent: '#FF5F05',
+      border: '#0e2040',  glow: '#FF5F05',
     },
   };
 
@@ -191,16 +197,41 @@ const CardRenderer = (() => {
 
   // ── Card Back ──────────────────────────────────
   function buildCardBack() {
-    return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 250 350">'
-      + '<defs><pattern id="bp" width="20" height="20" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">'
-      + '<rect width="20" height="20" fill="#1a5276"/>'
-      + '<rect width="10" height="10" fill="#1f6f8b" opacity="0.5"/>'
-      + '<rect x="10" y="10" width="10" height="10" fill="#1f6f8b" opacity="0.5"/>'
-      + '</pattern></defs>'
-      + '<rect x="1" y="1" width="248" height="348" rx="14" ry="14" fill="url(#bp)" stroke="#0e3d5a" stroke-width="2"/>'
-      + '<rect x="10" y="10" width="230" height="330" rx="10" ry="10" fill="none" stroke="rgba(255,255,255,0.25)" stroke-width="2"/>'
-      + '<rect x="16" y="16" width="218" height="318" rx="8" ry="8" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="1"/>'
-      + '</svg>';
+    const t = THEMES[currentTheme];
+    const b1 = t.back1, b2 = t.back2, ac = t.accent, bd = t.border, gl = t.glow;
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 250 350">
+  <defs>
+    <pattern id="bp" width="24" height="24" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+      <rect width="24" height="24" fill="${b1}"/>
+      <rect x="1" y="1" width="10" height="10" rx="1.5" fill="${b2}" opacity="0.6"/>
+      <rect x="13" y="13" width="10" height="10" rx="1.5" fill="${b2}" opacity="0.6"/>
+      <rect x="5" y="5" width="2" height="2" rx="1" fill="${ac}" opacity="0.3"/>
+      <rect x="17" y="17" width="2" height="2" rx="1" fill="${ac}" opacity="0.3"/>
+    </pattern>
+    <radialGradient id="glow" cx="50%" cy="50%" r="40%">
+      <stop offset="0%" stop-color="${gl}" stop-opacity="0.18"/>
+      <stop offset="100%" stop-color="${gl}" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect x="1" y="1" width="248" height="348" rx="14" ry="14" fill="url(#bp)" stroke="${bd}" stroke-width="2"/>
+  <rect x="8" y="8" width="234" height="334" rx="11" ry="11" fill="none" stroke="${ac}" stroke-width="1" opacity="0.35"/>
+  <rect x="14" y="14" width="222" height="322" rx="9" ry="9" fill="none" stroke="rgba(255,255,255,0.15)" stroke-width="1"/>
+  <ellipse cx="125" cy="175" rx="85" ry="105" fill="url(#glow)"/>
+  <g transform="translate(125,175)">
+    <polygon points="0,-55 38,0 0,55 -38,0" fill="none" stroke="${ac}" stroke-width="1.8" opacity="0.5"/>
+    <polygon points="0,-40 28,0 0,40 -28,0" fill="${ac}" opacity="0.12"/>
+    <polygon points="0,-25 17,0 0,25 -17,0" fill="none" stroke="${ac}" stroke-width="1" opacity="0.35"/>
+    <circle cx="0" cy="-18" r="3" fill="${ac}" opacity="0.5"/>
+    <circle cx="0" cy="18" r="3" fill="${ac}" opacity="0.5"/>
+    <circle cx="-13" cy="0" r="3" fill="${ac}" opacity="0.5"/>
+    <circle cx="13" cy="0" r="3" fill="${ac}" opacity="0.5"/>
+    <circle cx="0" cy="0" r="4.5" fill="${ac}" opacity="0.55"/>
+  </g>
+  <circle cx="30" cy="30" r="5" fill="none" stroke="${ac}" stroke-width="0.8" opacity="0.3"/>
+  <circle cx="220" cy="30" r="5" fill="none" stroke="${ac}" stroke-width="0.8" opacity="0.3"/>
+  <circle cx="30" cy="320" r="5" fill="none" stroke="${ac}" stroke-width="0.8" opacity="0.3"/>
+  <circle cx="220" cy="320" r="5" fill="none" stroke="${ac}" stroke-width="0.8" opacity="0.3"/>
+</svg>`;
   }
 
   // ── Cache ──────────────────────────────────────
