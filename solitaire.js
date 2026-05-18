@@ -82,6 +82,7 @@ function newGame() {
 
   clearInterval(timerInterval);
   timerInterval = null;
+  hideAutoCompletePrompt();
 
   saveGame();
   render();
@@ -123,14 +124,18 @@ function canPlaceOnFoundation(card, pileIdx) {
 // ── Moves ──────────────────────────────────────
 function drawFromStock() {
   startTimer();
+  const drawCount = getDrawCount();
   if (game.stock.length === 0) {
     // recycle waste → stock
     game.stock = game.waste.reverse().map(c => ({ ...c, faceUp: false }));
     game.waste = [];
   } else {
-    const card = game.stock.pop();
-    card.faceUp = true;
-    game.waste.push(card);
+    const n = Math.min(drawCount, game.stock.length);
+    for (let i = 0; i < n; i++) {
+      const card = game.stock.pop();
+      card.faceUp = true;
+      game.waste.push(card);
+    }
   }
   selection = null;
   saveGame();
@@ -223,6 +228,103 @@ function autoMoveToFoundation(source, pile, cardIndex) {
   return false;
 }
 
+/** Try to auto-move a card: foundation first, then best tableau pile */
+function tryAutoMove(source, pile, cardIndex) {
+  // Try foundation first (only for single top cards)
+  if (source === 'waste' || (source === 'tableau' && cardIndex === game.tableau[pile].length - 1)) {
+    if (autoMoveToFoundation(source, pile, cardIndex)) return true;
+  }
+
+  // Try tableau piles
+  let card;
+  if (source === 'waste') {
+    card = game.waste[game.waste.length - 1];
+  } else if (source === 'tableau') {
+    card = game.tableau[pile][cardIndex];
+  } else {
+    return false;
+  }
+
+  // Prefer non-empty piles over empty (don't waste empty slots moving kings around)
+  for (let i = 0; i < 7; i++) {
+    if (source === 'tableau' && i === pile) continue;
+    if (game.tableau[i].length > 0 && canPlaceOnTableau(card, i)) {
+      if (source === 'waste') return moveWasteToTableau(i);
+      if (source === 'tableau') return moveTableauToTableau(pile, cardIndex, i);
+    }
+  }
+  // Then try empty piles (only if card is a King)
+  if (card.rank === 13) {
+    for (let i = 0; i < 7; i++) {
+      if (source === 'tableau' && i === pile) continue;
+      if (game.tableau[i].length === 0) {
+        if (source === 'waste') return moveWasteToTableau(i);
+        if (source === 'tableau') return moveTableauToTableau(pile, cardIndex, i);
+      }
+    }
+  }
+  return false;
+}
+
+/** Check if auto-complete is possible: all remaining cards face-up, stock & waste empty */
+function canAutoComplete() {
+  if (game.stock.length > 0 || game.waste.length > 0) return false;
+  return game.tableau.every(pile => pile.every(c => c.faceUp));
+}
+
+/** Show the auto-complete prompt banner */
+function showAutoCompletePrompt() {
+  if (document.getElementById('auto-complete-bar')) return; // already showing
+  const bar = document.createElement('div');
+  bar.id = 'auto-complete-bar';
+  bar.innerHTML = '<span>All cards revealed!</span><button id="auto-complete-btn">&#x2728; Auto-Complete</button>';
+  document.body.appendChild(bar);
+  document.getElementById('auto-complete-btn').onclick = () => {
+    bar.remove();
+    runAutoComplete();
+  };
+}
+
+function hideAutoCompletePrompt() {
+  const bar = document.getElementById('auto-complete-bar');
+  if (bar) bar.remove();
+}
+
+/** Auto-complete: move all cards to foundations with short delays */
+function runAutoComplete() {
+  const step = 80; // ms between each card
+
+  function moveNext() {
+    let moved = false;
+    // Try each tableau pile
+    for (let t = 0; t < 7; t++) {
+      const pile = game.tableau[t];
+      if (pile.length === 0) continue;
+      const card = pile[pile.length - 1];
+      for (let f = 0; f < 4; f++) {
+        if (canPlaceOnFoundation(card, f)) {
+          moveTableauToFoundation(t, f);
+          moved = true;
+          break;
+        }
+      }
+      if (moved) break;
+    }
+
+    if (moved) {
+      saveGame();
+      render();
+      if (checkWin()) {
+        showWin();
+      } else {
+        setTimeout(moveNext, step);
+      }
+    }
+  }
+
+  moveNext();
+}
+
 function checkWin() {
   return game.foundations.every(p => p.length === 13);
 }
@@ -237,10 +339,19 @@ function handleWasteClick() {
   if (game.waste.length === 0) return;
 
   if (selection && selection.source === 'waste') {
-    // same card tapped again → try auto-foundation
-    autoMoveToFoundation('waste', 0, 0);
+    // same card tapped again → deselect
     selection = null;
+  } else if (!selection) {
+    // No selection → try auto-move first, then select
+    if (tryAutoMove('waste', 0, game.waste.length - 1)) {
+      selection = null;
+      if (checkWin()) { saveGame(); render(); showWin(); return; }
+      if (canAutoComplete()) { selection = null; saveGame(); render(); showAutoCompletePrompt(); return; }
+    } else {
+      selection = { source: 'waste', pile: 0, cardIndex: game.waste.length - 1 };
+    }
   } else {
+    // Had a different selection → select waste instead
     selection = { source: 'waste', pile: 0, cardIndex: game.waste.length - 1 };
   }
   saveGame();
@@ -270,6 +381,14 @@ function handleFoundationClick(pileIdx) {
       return;
     }
 
+    if (moved && canAutoComplete()) {
+      selection = null;
+      saveGame();
+      render();
+      showAutoCompletePrompt();
+      return;
+    }
+
     if (!moved && game.foundations[pileIdx].length > 0) {
       selection = { source: 'foundation', pile: pileIdx, cardIndex: game.foundations[pileIdx].length - 1 };
     } else {
@@ -292,12 +411,8 @@ function handleTableauClick(pileIdx, cardIndex) {
   if (cardIndex < pile.length && !pile[cardIndex].faceUp) return;
 
   if (selection) {
-    // Tapped the same card/stack → auto-foundation or deselect
+    // Tapped the same card/stack → deselect
     if (selection.source === 'tableau' && selection.pile === pileIdx && selection.cardIndex === cardIndex) {
-      if (cardIndex === pile.length - 1) {
-        autoMoveToFoundation('tableau', pileIdx, cardIndex);
-        if (checkWin()) { selection = null; saveGame(); render(); showWin(); return; }
-      }
       selection = null;
       saveGame();
       render();
@@ -316,16 +431,24 @@ function handleTableauClick(pileIdx, cardIndex) {
 
     if (moved) {
       selection = null;
+      if (checkWin()) { saveGame(); render(); showWin(); return; }
+      if (canAutoComplete()) { saveGame(); render(); showAutoCompletePrompt(); return; }
     } else if (cardIndex < pile.length && pile[cardIndex].faceUp) {
       selection = { source: 'tableau', pile: pileIdx, cardIndex };
     } else {
       selection = null;
     }
   } else {
-    // Nothing selected → select this card
-    if (pile.length === 0) return; // empty pile, nothing to select
+    // Nothing selected → try auto-move first, then select
+    if (pile.length === 0) return;
     if (cardIndex < pile.length && pile[cardIndex].faceUp) {
-      selection = { source: 'tableau', pile: pileIdx, cardIndex };
+      if (tryAutoMove('tableau', pileIdx, cardIndex)) {
+        selection = null;
+        if (checkWin()) { saveGame(); render(); showWin(); return; }
+        if (canAutoComplete()) { saveGame(); render(); showAutoCompletePrompt(); return; }
+      } else {
+        selection = { source: 'tableau', pile: pileIdx, cardIndex };
+      }
     }
   }
   saveGame();
@@ -397,16 +520,37 @@ function renderWaste() {
   const el = document.getElementById('waste');
   el.innerHTML = '';
   el.className = 'card-slot';
+  el.style.position = 'relative';
 
+  const drawCount = getDrawCount();
   if (game.waste.length > 0) {
-    const top = game.waste[game.waste.length - 1];
-    const c = makeCardEl(top, true);
-    if (selection && selection.source === 'waste') c.classList.add('selected');
-    c.dataset.source = 'waste';
-    c.dataset.pile = '0';
-    c.dataset.cardIndex = String(game.waste.length - 1);
-    addDragListeners(c);
-    el.appendChild(c);
+    // In draw-3 mode, show up to 3 fanned cards
+    const showCount = drawCount === 3 ? Math.min(3, game.waste.length) : 1;
+    const fanOffset = Math.round(cardW * 0.3);
+
+    for (let i = 0; i < showCount; i++) {
+      const idx = game.waste.length - showCount + i;
+      const card = game.waste[idx];
+      const c = makeCardEl(card, true);
+      c.style.position = 'absolute';
+      c.style.left = (drawCount === 3 ? i * fanOffset : 0) + 'px';
+      c.style.top = '0';
+      c.style.zIndex = String(i);
+
+      // Only the top card is interactive
+      if (i === showCount - 1) {
+        if (selection && selection.source === 'waste') c.classList.add('selected');
+        c.dataset.source = 'waste';
+        c.dataset.pile = '0';
+        c.dataset.cardIndex = String(game.waste.length - 1);
+        addDragListeners(c);
+      }
+      el.appendChild(c);
+    }
+    // Set container width to accommodate fanned cards
+    if (drawCount === 3 && showCount > 1) {
+      el.style.width = (cardW + (showCount - 1) * fanOffset) + 'px';
+    }
   }
 
   el.onclick = handleWasteClick;
@@ -500,8 +644,9 @@ function computeFanOffsets() {
   // Available height for tableau
   const gameH = document.getElementById('game').clientHeight;
   const topSection = document.getElementById('top-row').offsetHeight;
-  const toolbarH = document.getElementById('toolbar').offsetHeight;
-  const available = gameH - topSection - toolbarH - 20; // padding
+  const infoBarH = document.getElementById('info-bar').offsetHeight;
+  const bottomBarH = document.getElementById('bottom-bar').offsetHeight;
+  const available = gameH - topSection - infoBarH - bottomBarH - 20; // padding
 
   // Find tallest pile with ideal offsets
   let worst = cardH;
@@ -734,6 +879,7 @@ function findHint() {
     const pile = game.foundations[f];
     if (pile.length === 0) continue;
     const card = pile[pile.length - 1];
+    if (card.rank === 1) continue; // never pull an ace off a foundation
     for (let j = 0; j < 7; j++) {
       if (canPlaceOnTableau(card, j)) {
         return { from: { source: 'foundation', pile: f }, to: { type: 'tableau', pile: j } };
@@ -1069,6 +1215,13 @@ function dropCards(x, y) {
     return;
   }
 
+  if (moved && canAutoComplete()) {
+    saveGame();
+    render();
+    showAutoCompletePrompt();
+    return;
+  }
+
   saveGame();
   render();
 }
@@ -1178,6 +1331,14 @@ function resetStats() {
 }
 
 // ── Settings / Theme Picker ──────────────────────
+function getDrawCount() {
+  return parseInt(localStorage.getItem('solitaire-draw-count') || '1', 10);
+}
+
+function setDrawCount(n) {
+  localStorage.setItem('solitaire-draw-count', String(n));
+}
+
 function renderThemePicker() {
   const picker = document.getElementById('theme-picker');
   const themes = CardRenderer.getThemes();
@@ -1206,7 +1367,23 @@ function renderThemePicker() {
 
 function showSettings() {
   renderThemePicker();
+  renderDrawToggle();
   document.getElementById('settings-overlay').classList.remove('hidden');
+}
+
+function renderDrawToggle() {
+  const container = document.getElementById('draw-toggle');
+  const current = getDrawCount();
+  container.innerHTML = [1, 3].map(n => {
+    const sel = n === current ? ' selected' : '';
+    return `<button class="draw-option${sel}" data-draw="${n}">Draw ${n}</button>`;
+  }).join('');
+  container.querySelectorAll('.draw-option').forEach(btn => {
+    btn.onclick = () => {
+      setDrawCount(parseInt(btn.dataset.draw, 10));
+      renderDrawToggle();
+    };
+  });
 }
 
 function hideSettings() {

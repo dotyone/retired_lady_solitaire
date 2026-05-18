@@ -13,18 +13,14 @@
   <meta name="apple-mobile-web-app-title" content="Solitaire">
   <link rel="apple-touch-icon" href="dog_icon.png">
 
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="style.css?v=3">
 </head>
 <body>
   <div id="game">
-    <!-- Toolbar -->
-    <div id="toolbar">
-      <button id="new-game-btn" class="toolbar-btn">&#x21bb; New Game</button>
+    <!-- Top info bar -->
+    <div id="info-bar">
       <span id="move-counter">Moves: 0</span>
       <span id="timer">0:00</span>
-      <button id="stats-btn" class="toolbar-btn">&#x1f4ca; Stats</button>
-      <button id="settings-btn" class="toolbar-btn">&#x2699;&#xFE0F;</button>
-      <button id="hint-btn" class="toolbar-btn">&#x2728; Hint</button>
     </div>
 
     <!-- Top row: foundations (left), stock/waste (right for thumb reach) -->
@@ -80,11 +76,25 @@
       <div id="settings-panel">
         <h2>&#x2699;&#xFE0F; Settings</h2>
         <div id="theme-picker"></div>
+        <div class="settings-section">
+          <div class="settings-label">Draw Mode</div>
+          <div id="draw-toggle"></div>
+        </div>
         <div id="settings-actions">
           <button id="settings-close">Close</button>
         </div>
       </div>
     </div>
+
+    </div>
+  </div>
+
+  <!-- Bottom tab bar (outside #game for fixed positioning) -->
+  <div id="bottom-bar">
+    <button id="new-game-btn" class="tab-btn"><span class="tab-icon">&#x21bb;</span><span class="tab-label">New Game</span></button>
+    <button id="stats-btn" class="tab-btn"><span class="tab-icon">&#x1f4ca;</span><span class="tab-label">Stats</span></button>
+    <button id="settings-btn" class="tab-btn"><span class="tab-icon">&#x2699;&#xFE0F;</span><span class="tab-label">Settings</span></button>
+    <button id="hint-btn" class="tab-btn"><span class="tab-icon">&#x1f4a1;</span><span class="tab-label">Hint</span></button>
   </div>
 
   <script src="card-renderer.js"></script>

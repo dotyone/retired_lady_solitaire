@@ -11,8 +11,8 @@ const CardRenderer = (() => {
       diamonds: '#cc0000',
       clubs:    '#222222',
       spades:   '#222222',
-      back1: '#f5f5f0',  back2: '#e8e4dc',  accent: '#cc0000',
-      border: '#999',    glow: '#cc0000',
+      back1: '#1a3d8f',  back2: '#2255aa',  accent: '#ffffff',
+      border: '#0e2a5a',  glow: '#ffffff',
     },
     grizz: {
       label: 'Grizz',
@@ -60,23 +60,6 @@ const CardRenderer = (() => {
     return ' paint-order="stroke" stroke="rgba(0,0,0,0.25)" stroke-width="1.5" stroke-linejoin="round"';
   }
 
-  // ── Pip Layouts (absolute coords in 250×350 viewBox) ──
-  // Columns — pushed inward to avoid mega-index corners
-  const LL = 90, CC = 125, RR = 160;
-
-  // Positions: [x, y] — pips with y > 176 render upside-down
-  const PIP_POS = {
-    2:  [[CC,110],                                                        [CC,240]],
-    3:  [[CC,110],                          [CC,175],                     [CC,240]],
-    4:  [[LL,110],[RR,110],                                    [LL,240],[RR,240]],
-    5:  [[LL,110],[RR,110],                 [CC,175],          [LL,240],[RR,240]],
-    6:  [[LL,110],[RR,110],      [LL,175],[RR,175],            [LL,240],[RR,240]],
-    7:  [[LL,110],[RR,110],[CC,142],[LL,175],[RR,175],         [LL,240],[RR,240]],
-    8:  [[LL,110],[RR,110],[CC,142],[LL,175],[RR,175],[CC,208],[LL,240],[RR,240]],
-    9:  [[LL,100],[CC,100],[RR,100],[LL,155],[CC,155],[RR,155],[LL,210],[CC,210],[RR,210]],
-    10: [[LL,100],[CC,100],[RR,100],[LL,148],[RR,148],[LL,202],[RR,202],[LL,250],[CC,250],[RR,250]],
-  };
-
   // ── SVG Building Blocks ────────────────────────
 
   /** Shared card outline */
@@ -84,20 +67,19 @@ const CardRenderer = (() => {
     return '<rect x="1" y="1" width="248" height="348" rx="14" ry="14" fill="white" stroke="#bbb" stroke-width="1"/>';
   }
 
-  /** Top-left + bottom-right corner rank & suit labels (mega-index) */
+  /** Top-left + bottom-right corner labels: rank + suit side-by-side */
   function corners(suit, rank) {
     const c  = col(suit);
     const ch = SUIT_CHAR[suit];
     const lbl = rankLabel(rank);
-    const fs  = lbl.length > 1 ? 47 : 55;      // large rank (~30% bigger)
+    const fs  = lbl.length > 1 ? 88 : 104;
+    const ss  = 68;  // suit size
     const o = outline(c);
+    // Suit x offset depends on rank width
+    const sx = lbl.length > 1 ? 106 : 86;
     return `
-  <text x="30" y="52" font-size="${fs}" font-weight="700" fill="${c}"${o} text-anchor="middle" font-family="'Segoe UI',Arial,sans-serif">${lbl}</text>
-  <text x="30" y="90" font-size="42" fill="${c}"${o} text-anchor="middle">${ch}</text>
-  <g transform="rotate(180,125,175)">
-    <text x="30" y="52" font-size="${fs}" font-weight="700" fill="${c}"${o} text-anchor="middle" font-family="'Segoe UI',Arial,sans-serif">${lbl}</text>
-    <text x="30" y="90" font-size="42" fill="${c}"${o} text-anchor="middle">${ch}</text>
-  </g>`;
+  <text x="10" y="90" font-size="${fs}" font-weight="700" fill="${c}"${o} text-anchor="start" font-family="'Segoe UI',Arial,sans-serif">${lbl}</text>
+  <text x="${sx}" y="86" font-size="${ss}" fill="${c}"${o} text-anchor="start">${ch}</text>`;
   }
 
   /** Wrap inner content in a full-card SVG */
@@ -106,37 +88,23 @@ const CardRenderer = (() => {
       + cardRect() + inner + '</svg>';
   }
 
-  // ── Number Cards (2-10) ────────────────────────
+  // ── Number Cards (2-10) — big centered suit ──
   function buildPipCard(suit, rank) {
     const c  = col(suit);
     const ch = SUIT_CHAR[suit];
-    const positions = PIP_POS[rank];
     const o = outline(c);
-
-    // Scale pip size by rank — bold for low cards, tighter for crowded ones
-    const pipSize = rank <= 3 ? 48 : rank <= 5 ? 42 : rank <= 8 ? 38 : 34;
-
-    let pips = '';
-    for (const [x, y] of positions) {
-      const flip = y > 176;
-      if (flip) {
-        pips += '<text x="' + x + '" y="' + y + '" font-size="' + pipSize + '" fill="' + c
-          + '"' + o + ' text-anchor="middle" dominant-baseline="central" transform="rotate(180,' + x + ',' + y + ')">' + ch + '</text>';
-      } else {
-        pips += '<text x="' + x + '" y="' + y + '" font-size="' + pipSize + '" fill="' + c
-          + '"' + o + ' text-anchor="middle" dominant-baseline="central">' + ch + '</text>';
-      }
-    }
-    return svgWrap(corners(suit, rank) + pips);
+    return svgWrap(corners(suit, rank)
+      + '<text x="125" y="195" font-size="140" fill="' + c
+      + '"' + o + ' text-anchor="middle" dominant-baseline="central">' + ch + '</text>');
   }
 
-  // ── Ace ────────────────────────────────────────
+  // ── Ace — same big centered suit ────────────────────
   function buildAce(suit) {
     const c  = col(suit);
     const ch = SUIT_CHAR[suit];
     const o = outline(c);
     return svgWrap(corners(suit, 1)
-      + '<text x="125" y="175" font-size="80" fill="' + c
+      + '<text x="125" y="195" font-size="140" fill="' + c
       + '"' + o + ' text-anchor="middle" dominant-baseline="central">' + ch + '</text>');
   }
 
@@ -173,11 +141,10 @@ const CardRenderer = (() => {
       + '0 0 ' + mb + ' 0 ' + sb + ' '
       + '0 0 0 1 0"/>'
       + '</filter></defs>'
-      // Full illustration with suit color tint
-      + '<image href="' + imgData + '" x="3" y="3" width="244" height="344" preserveAspectRatio="xMidYMid meet" filter="url(#st)"/>'
-      // White corner badges for readability
-      + '<rect x="2" y="2" width="52" height="90" rx="10" fill="white" opacity="0.88"/>'
-      + '<rect x="196" y="258" width="52" height="90" rx="10" fill="white" opacity="0.88"/>'
+      // Icon centered below badge area, with suit color tint
+      + '<image href="' + imgData + '" x="25" y="100" width="200" height="230" preserveAspectRatio="xMidYMid meet" filter="url(#st)"/>'
+      // White corner badge for readability
+      + '<rect x="2" y="2" width="150" height="96" rx="10" fill="white" opacity="0.88"/>'
       // Corner labels
       + corners(suit, rank));
   }
@@ -274,7 +241,7 @@ const CardRenderer = (() => {
             resolve();
           };
           img.onerror = () => resolve(); // fallback to SVG
-          img.src = path;
+          img.src = path + '?v=3';
         });
       }));
     },
