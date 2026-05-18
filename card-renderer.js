@@ -89,14 +89,14 @@ const CardRenderer = (() => {
     const c  = col(suit);
     const ch = SUIT_CHAR[suit];
     const lbl = rankLabel(rank);
-    const fs  = lbl.length > 1 ? 36 : 42;      // large rank
+    const fs  = lbl.length > 1 ? 47 : 55;      // large rank (~30% bigger)
     const o = outline(c);
     return `
-  <text x="28" y="48" font-size="${fs}" font-weight="700" fill="${c}"${o} text-anchor="middle" font-family="'Segoe UI',Arial,sans-serif">${lbl}</text>
-  <text x="28" y="80" font-size="32" fill="${c}"${o} text-anchor="middle">${ch}</text>
+  <text x="30" y="52" font-size="${fs}" font-weight="700" fill="${c}"${o} text-anchor="middle" font-family="'Segoe UI',Arial,sans-serif">${lbl}</text>
+  <text x="30" y="90" font-size="42" fill="${c}"${o} text-anchor="middle">${ch}</text>
   <g transform="rotate(180,125,175)">
-    <text x="28" y="48" font-size="${fs}" font-weight="700" fill="${c}"${o} text-anchor="middle" font-family="'Segoe UI',Arial,sans-serif">${lbl}</text>
-    <text x="28" y="80" font-size="32" fill="${c}"${o} text-anchor="middle">${ch}</text>
+    <text x="30" y="52" font-size="${fs}" font-weight="700" fill="${c}"${o} text-anchor="middle" font-family="'Segoe UI',Arial,sans-serif">${lbl}</text>
+    <text x="30" y="90" font-size="42" fill="${c}"${o} text-anchor="middle">${ch}</text>
   </g>`;
   }
 
