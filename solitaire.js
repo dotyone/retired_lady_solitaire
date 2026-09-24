@@ -56,6 +56,37 @@ const game = {
 
 let selection = null;   // { source, pile, cardIndex }
 let timerInterval = null;
+let undoState = null;
+let autoCompleteTimer = null;
+
+function saveUndoState() {
+  undoState = JSON.parse(JSON.stringify({
+    stock: game.stock,
+    waste: game.waste,
+    foundations: game.foundations,
+    tableau: game.tableau,
+    moveCount: game.moveCount,
+  }));
+}
+
+function undoLastMove() {
+  if (!undoState) return;
+
+  clearTimeout(autoCompleteTimer);
+  autoCompleteTimer = null;
+  hideAutoCompletePrompt();
+
+  game.stock = undoState.stock;
+  game.waste = undoState.waste;
+  game.foundations = undoState.foundations;
+  game.tableau = undoState.tableau;
+  game.moveCount = undoState.moveCount;
+  undoState = null;
+  selection = null;
+
+  saveGame();
+  render();
+}
 
 // ── Deal / New Game ────────────────────────────
 function newGame() {
@@ -79,9 +110,12 @@ function newGame() {
   game.elapsedSeconds = 0;
   game.timerRunning = false;
   selection = null;
+  undoState = null;
 
   clearInterval(timerInterval);
   timerInterval = null;
+  clearTimeout(autoCompleteTimer);
+  autoCompleteTimer = null;
   hideAutoCompletePrompt();
 
   saveGame();
@@ -146,6 +180,7 @@ function moveWasteToTableau(pileIdx) {
   if (game.waste.length === 0) return false;
   const card = game.waste[game.waste.length - 1];
   if (!canPlaceOnTableau(card, pileIdx)) return false;
+  saveUndoState();
   game.waste.pop();
   game.tableau[pileIdx].push(card);
   game.moveCount++;
@@ -156,6 +191,7 @@ function moveWasteToFoundation(pileIdx) {
   if (game.waste.length === 0) return false;
   const card = game.waste[game.waste.length - 1];
   if (!canPlaceOnFoundation(card, pileIdx)) return false;
+  saveUndoState();
   game.waste.pop();
   game.foundations[pileIdx].push(card);
   game.moveCount++;
@@ -169,6 +205,7 @@ function moveTableauToTableau(fromPile, cardIndex, toPile) {
   if (!srcPile[cardIndex].faceUp) return false;
   if (!canPlaceOnTableau(srcPile[cardIndex], toPile)) return false;
 
+  saveUndoState();
   const cards = srcPile.splice(cardIndex);
   game.tableau[toPile].push(...cards);
   flipTopCard(fromPile);
@@ -181,6 +218,7 @@ function moveTableauToFoundation(fromPile, foundPile) {
   if (srcPile.length === 0) return false;
   const card = srcPile[srcPile.length - 1];
   if (!canPlaceOnFoundation(card, foundPile)) return false;
+  saveUndoState();
   srcPile.pop();
   game.foundations[foundPile].push(card);
   flipTopCard(fromPile);
@@ -193,6 +231,7 @@ function moveFoundationToTableau(foundPile, toPile) {
   if (srcPile.length === 0) return false;
   const card = srcPile[srcPile.length - 1];
   if (!canPlaceOnTableau(card, toPile)) return false;
+  saveUndoState();
   srcPile.pop();
   game.tableau[toPile].push(card);
   game.moveCount++;
@@ -317,8 +356,10 @@ function runAutoComplete() {
       if (checkWin()) {
         showWin();
       } else {
-        setTimeout(moveNext, step);
+        autoCompleteTimer = setTimeout(moveNext, step);
       }
+    } else {
+      autoCompleteTimer = null;
     }
   }
 
@@ -489,6 +530,7 @@ function sizeSlots() {
 function renderToolbar() {
   document.getElementById('move-counter').textContent = 'Moves: ' + game.moveCount;
   document.getElementById('timer').textContent = formatTime(game.elapsedSeconds);
+  document.getElementById('undo-btn').disabled = !undoState;
 }
 
 function makeCardEl(card, isFaceUp) {
@@ -1436,6 +1478,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     newGame();
   };
+  document.getElementById('undo-btn').onclick = undoLastMove;
   document.getElementById('hint-btn').onclick = showHint;
   document.getElementById('stats-btn').onclick = showStats;
   document.getElementById('stats-close').onclick = hideStats;
